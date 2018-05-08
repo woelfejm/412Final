@@ -42,6 +42,10 @@ var barrelMaterial = new Material();
 var raftMaterial = new Material();
 var checkMaterial = new Material();
 
+
+
+
+
 /**
  * Initialize the WebGL context, load/compile shaders, and initialize our shapes.
  */
@@ -88,12 +92,8 @@ var init = function() {
     gl.uniform1i(uni.uDiffuseTex, 0);
 
     //attach textures to material
-    groundMaterial.diffuseTexture = "pool.png";
+    groundMaterial.diffuseTexture = "dirt.png";
     blockMaterial.diffuseTexture = "crate.png";
-    bobMaterial.diffuseTexture = "bob_diffuse.png";
-    barrelMaterial.diffuseTexture = "barrel.png";
-    raftMaterial.diffuseTexture = "wood.png";
-    checkMaterial.diffuseTexture = "check";
 
     // Initialize our shapes
     Shapes.init(gl);
@@ -112,19 +112,13 @@ var init = function() {
     
     //get promises and assign objects 
     Promise.all( [
-         Utils.loadTexture(gl, "media/pool.png"),
+         Utils.loadTexture(gl, "media/dirt.png"),
          Utils.loadTexture(gl, "media/crate.png"),
-         Utils.loadTexture(gl, "media/bob_diffuse.png"),
-         Utils.loadTexture(gl, "media/barrel.png"),
-         Utils.loadTexture(gl, "media/wood.png"),
-         Obj.load(gl,"media/bob_tri.obj")
+         Obj.load(gl,"media/eclipse.obj")
              ]).then( function(values) {
-         Textures["pool.png"] = values[0];
+         Textures["dirt.png"] = values[0]
          Textures["crate.png"] = values[1];
-         Textures["bob_diffuse.png"] = values[2];
-         Textures["barrel.png"] = values[3];
-         Textures["wood.png"] = values[4]
-         Shapes.bob = values[5];
+         Shapes.car = values[2];
         render();
     });
 };
@@ -182,39 +176,23 @@ var render = function() {
 var drawScene = function() {
     let model = mat4.create();
 
-    //render the ground with water texture
+    //render the ground with dirt texture
     mat4.identity(model);
     mat4.translate(model, model, vec3.fromValues(0, 0.01, 0));
     gl.uniformMatrix4fv(uni.uModel, false, model);
     Shapes.ground.render(gl,uni,groundMaterial);
 
+     //render car from file(mtl applied[which applies above loaded textures] in objmodel)
+     mat4.scale(model,model,vec3.fromValues(5,5,5));
+     gl.uniformMatrix4fv(uni.uModel,false,model);
+     Shapes.car.render(gl,uni);
+
     //render a cube with box texture
-    mat4.fromTranslation(model, vec3.fromValues(1.0,0.5,1.5));
+    mat4.fromTranslation(model, vec3.fromValues(4.0,0.5,4.0));
     gl.uniformMatrix4fv(uni.uModel, false, model);
     Shapes.cube.render(gl, uni,blockMaterial);
 
-    //render a cylinder with barrel texture
-    mat4.fromTranslation(model, vec3.fromValues(-1.0,1.0,1.5));
-    mat4.rotateX(model,model,Math.PI/2);
-    gl.uniformMatrix4fv(uni.uModel,false,model);
-    Shapes.cylinder.render(gl, uni, barrelMaterial);
-
-    //render a cylinder with a standard proceedural texture
-    mat4.fromTranslation(model, vec3.fromValues(-2.0,1.0,2.5));
-    mat4.rotateX(model,model,Math.PI/2);
-    gl.uniformMatrix4fv(uni.uModel,false,model);
-    Shapes.cylinder.render(gl, uni,checkMaterial);
-
-    //render a shape from a file (mtl applied[which applies above loaded texture] in objmodel)
-    mat4.fromTranslation(model, vec3.fromValues(0.0,0.0,-1.5));
-    gl.uniformMatrix4fv(uni.uModel,false,model);
-    Shapes.bob.render(gl,uni);
-
-    //render the disk with a wood plank texture (linear texture used to verify no warping/correct texture coodrinates created)
-    mat4.fromTranslation(model, vec3.fromValues(0.0,0.1,0.0));
-    mat4.rotateX(model,model,Math.PI/2);
-    gl.uniformMatrix4fv(uni.uModel,false,model);
-    Shapes.disk.render(gl,uni,raftMaterial);
+   
 
 };
 
