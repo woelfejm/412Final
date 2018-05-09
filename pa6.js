@@ -114,11 +114,13 @@ var init = function() {
     Promise.all( [
          Utils.loadTexture(gl, "media/dirt.png"),
          Utils.loadTexture(gl, "media/crate.png"),
-         Obj.load(gl,"media/eclipse.obj")
+         Obj.load(gl,"media/eclipse.obj"),
+         Obj.load(gl,"media/roadblock_obj.obj")
              ]).then( function(values) {
          Textures["dirt.png"] = values[0]
          Textures["crate.png"] = values[1];
          Shapes.car = values[2];
+         Shapes.roadblock = values[3];
         render();
     });
 };
@@ -175,12 +177,13 @@ var render = function() {
  */
 var drawScene = function() {
     let model = mat4.create();
+    var sc = new scenery(model,groundMaterial);
 
     //render the ground with dirt texture
     mat4.identity(model);
-    mat4.translate(model, model, vec3.fromValues(0, 0.01, 0));
-    gl.uniformMatrix4fv(uni.uModel, false, model);
-    Shapes.ground.render(gl,uni,groundMaterial);
+
+    sc.drawScenery(model,groundMaterial);
+    sc.drawRoadblock(model);
 
      //render car from file(mtl applied[which applies above loaded textures] in objmodel)
      mat4.scale(model,model,vec3.fromValues(5,5,5));
@@ -191,8 +194,6 @@ var drawScene = function() {
     mat4.fromTranslation(model, vec3.fromValues(4.0,0.5,4.0));
     gl.uniformMatrix4fv(uni.uModel, false, model);
     Shapes.cube.render(gl, uni,blockMaterial);
-
-   
 
 };
 
