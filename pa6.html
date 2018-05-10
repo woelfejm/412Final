@@ -1,3 +1,4 @@
+
 <!--
 Name: David Stoppenbrink
 Assignment: Pa6
@@ -26,7 +27,7 @@ Special instructions: ****
 </canvas>
 
 <p>
-    Camera mode: 
+    Camera mode:
     <select id="camera-mode-select">
         <option value="0">Mouse</option>
         <option value="1">1st Person</option>
@@ -65,44 +66,44 @@ Special instructions: ****
     layout(location=0) in vec4 vPosition;
     layout(location=1) in vec3 vNormal;
     layout(location=2) in vec2 vTexCoord;
-    
+
     uniform mat4 uModel;  // Object to world
     uniform mat4 uView;   // World to camera
     uniform mat4 uProj;   // Projection matrix
-    
+
     // Output to the fragment shader
     out vec3 fNormCam;   // Normal in camera coordinates
     out vec3 fPosCam;    // Position in camera coordinates
     out vec2 fTexCoord;  // Texture coordinate
-    
+
     void main() {
         fTexCoord = vTexCoord;
         mat4 mv = uView * uModel;
-    
+
         // Compute position in camera coordinates
         fPosCam = (mv * vPosition).xyz;
-    
+
         // Transform normal into camera coordinates.  Note that this is not correct in all cases.  This
         // only transforms the normal correctly when mv contains uniform scalings.  The correct
         // transformation is the inverse transpose of mv.  For now, to keep things simple,
-        // we'll just avoid non-uniform scalings.  
+        // we'll just avoid non-uniform scalings.
         // Note: we add 0 as the 4th component of the normal.
         fNormCam = normalize( (mv * vec4(vNormal,0)).xyz );
-    
+
         // Convert position to clip coordinates
         gl_Position = uProj * mv * vPosition;
     }
-      
+
 </script>
 
 <script id="fragment-shader-p" type="x-shader/x-fragment">#version 300 es
     precision highp float;
-    
+
     out vec4 fragColor;
-    
+
     // Material Properties
     uniform vec3 uEmissive;  // Emitted intensity
-    uniform vec3 uAmbient;   // Ambient 
+    uniform vec3 uAmbient;   // Ambient
     uniform vec3 uDiffuse;   // Diffuse reflectivity (Kd)
     uniform vec3 uSpecular;  // Specular reflectivity (Ks)
     uniform float uShine;    // Specular exponent (f)
@@ -121,7 +122,7 @@ Special instructions: ****
     // Texture parameters
     uniform bool uHasDiffuseTex;
     uniform sampler2D uDiffuseTex;
-    
+
     void main() {
         vec3 diff = vec3(0,0,0);
 
@@ -132,7 +133,7 @@ Special instructions: ****
         vec3 lightDir = normalize( (uLightPos - fPosCam).xyz );
         // Cosine of the angle between normal and lightDir
         float lDotN = max( dot( lightDir, n ), 0.0 );
-        vec3 diffuse = uDiffuse * lDotN, 
+        vec3 diffuse = uDiffuse * lDotN,
             specular = vec3(0,0,0);
         if( lDotN > 0.0 ) {
             // Direction towards the camera
@@ -142,13 +143,13 @@ Special instructions: ****
             float hDotN = max( dot(h, n), 0.0 );
             specular = uSpecular * pow(hDotN, uShine);
         }
-        if( uHasDiffuseTex ) 
+        if( uHasDiffuseTex )
             diff = texture(uDiffuseTex, fTexCoord).rgb;
-        
+
         // Final color
-        fragColor = vec4( 
-            diff + uEmissive + 
-            uAmbientLight * uAmbient + 
+        fragColor = vec4(
+            diff + uEmissive +
+            uAmbientLight * uAmbient +
             uLightIntensity * (diffuse + specular)
             , 1 );
     }
@@ -171,6 +172,8 @@ Special instructions: ****
 <script type="text/javascript" src="lib/geom/shapes.js"></script>
 <script type="text/javascript" src="lib/textures.js"></script>
 <script type="text/javascript" src="lib/camera.js"></script>
+<script type="text/javascript" src="scenery.js"></script>
+
 
 <script type="text/javascript" src="pa6.js"></script>
 
