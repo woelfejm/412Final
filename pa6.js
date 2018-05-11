@@ -46,6 +46,7 @@ var bobMaterial = new Material();
 var barrelMaterial = new Material();
 var raftMaterial = new Material();
 var checkMaterial = new Material();
+var palmMaterial = new Material();
 
 
 
@@ -100,6 +101,7 @@ var init = function() {
     groundMaterial.diffuseTexture = "dirt.png";
     racetrackMaterial.diffuseTexture = "racetrack.png";
     blockMaterial.diffuseTexture = "crate.png";
+    palmMaterial.diffuseTexture = "Bottom_Trunk.png";
 
     // Initialize our shapes
     Shapes.init(gl);
@@ -125,11 +127,17 @@ var init = function() {
          Utils.loadTexture(gl, "media/crate.png"),
          Obj.load(gl,"media/eclipse.obj"),
          Utils.loadTexture(gl, "media/racetrack.png"),
+         Obj.load(gl,"media/roadblock_obj.obj"),
+         Obj.load(gl,"media/Date_Palm.obj"),
+         Utils.loadTexture(gl, "media/Bottom_Trunk.png")
              ]).then( function(values) {
          Textures["dirt.png"] = values[0]
          Textures["crate.png"] = values[1];
          Shapes.car = values[2];
-         Textures["racetrack.png"] = values[3];   //image I added of a racetrack
+         Textures["racetrack.png"] = values[3];
+         Shapes.roadblock = values[4];
+         Shapes.palm = values[5];
+         Textures["Bottom_Trunk.png"] = values[6];
         render();
     });
 };
@@ -189,15 +197,23 @@ var render = function() {
  */
 var drawScene = function() {
     let model = mat4.create();
-
+    var sc = new scenery(model);
     //render the ground with dirt texture
     mat4.identity(model);
-    mat4.translate(model, model, vec3.fromValues(0, 0.01, 0));
-    mat4.scale(model, model, vec3.fromValues(10, 1, 10));  //make ground bigger
-    gl.uniformMatrix4fv(uni.uModel, false, model);
-    Shapes.ground.render(gl,uni,racetrackMaterial);
-
-
+    
+    sc.drawScenery(model,groundMaterial,racetrackMaterial);
+    sc.drawRoadblock1(model);
+    sc.drawRoadblock2(model);
+    sc.drawRoadblock3(model);
+    sc.drawRoadblock4(model);
+    sc.drawRoadblock5(model);
+    sc.drawRoadblock6(model);
+    sc.drawRoadblock7(model);
+    sc.drawRoadblockE(model);
+    sc.drawRoadblockW(model);
+    sc.drawRoadblockN(model);
+    sc.drawRoadblockS(model);
+    //sc.drawPalms(model);
     drawCar();
 
     //render a cube with box texture
