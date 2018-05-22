@@ -37,8 +37,8 @@ Special instructions: ****
     &nbsp;&nbsp;&nbsp;&nbsp;Space bar - Reset camera position&nbsp;&nbsp;&nbsp;&nbsp;
     Light mode:
     <select id="light-mode-select">
-        <option value="0">Local</option>
-        <option value="1">Camera</option>
+        <option value="0">Day Mode</option>
+        <option value="1">Night Mode</option>
     </select>
 </p>
 <table>
@@ -99,6 +99,7 @@ Special instructions: ****
 <script id="fragment-shader-p" type="x-shader/x-fragment">#version 300 es
     precision highp float;
 
+    
     out vec4 fragColor;
 
     // Material Properties
@@ -108,11 +109,21 @@ Special instructions: ****
     uniform vec3 uSpecular;  // Specular reflectivity (Ks)
     uniform float uShine;    // Specular exponent (f)
 
-    // Light properties
-    uniform vec3 uLightPos;        // Light position (camera coords)
-    uniform vec3 uLightIntensity;  // Light intensity
+    // Sun Light properties
+    uniform vec3 uSunPos;        // Light position (camera coords)
+    uniform vec3 uSunIntensity;  // Light intensity
     uniform vec3 uAmbientLight;    // Intensity of ambient light
-    uniform int uCamAttached;
+
+    //Street Light properties
+    uniform vec3 uStreetLightIntensity;
+    uniform vec3 uStreetLights[6];
+
+    //Car light properties
+    uniform bool uNightMode;
+    uniform vec3 uHeadLightPos[2];
+    uniform vec3 uHeadLightIntensity;
+    uniform vec3 uTailLightPos[2];
+    uniform vec3 uTailLightIntensity;
 
     // From the vertex shader, interpolated across the triangle
     in vec3 fNormCam;   // Normal in camera coordinates
@@ -125,37 +136,177 @@ Special instructions: ****
 	uniform bool uHasColor;
 	uniform vec4 uColor;
 
+
     void main() {
-        vec3 diff = vec3(0,0,0);
+            //use the headlights as the light source
+            vec3 lightPos;
+            vec3 lightIntensity;
 
-        // Renormalize (interpolation can change length slightly)
-        vec3 n = normalize(fNormCam);
 
-        // Direction towards light (camera coords)
-        vec3 lightDir = normalize( (uLightPos - fPosCam).xyz );
-        // Cosine of the angle between normal and lightDir
-        float lDotN = max( dot( lightDir, n ), 0.0 );
-        vec3 diffuse = uDiffuse * lDotN,
-            specular = vec3(0,0,0);
-        if( lDotN > 0.0 ) {
-            // Direction towards the camera
-            vec3 vDir = normalize( -fPosCam );
-            // "Halfway" vector
-            vec3 h = normalize( lightDir + vDir );
-            float hDotN = max( dot(h, n), 0.0 );
-            specular = uSpecular * pow(hDotN, uShine);
-        }
-        if( uHasDiffuseTex ){
-            diff = texture(uDiffuseTex, fTexCoord).rgb;
-		}else if( uHasColor ){
-			fragColor = uColor;
-		}
-        // Final color
-        fragColor = vec4(
-            diff + uEmissive +
-            uAmbientLight * uAmbient +
-            uLightIntensity * (diffuse + specular)
-            , 1 );
+            vec3 diffuseTotal = vec3(0, 0, 0);
+            vec3 specularTotal = vec3(0,0,0);
+
+            if(uNightMode){
+                
+                //iterate through street lights 
+                for(int i = 0; i < 0; i++){ //skipping iterating through street lights since it causes scene to have too much light
+                    lightPos = uStreetLights[i];
+                    lightIntensity = uStreetLightIntensity;
+            
+                    // Renormalize (interpolation can change length slightly)
+                    vec3 n = normalize(fNormCam);
+                    
+                    // Direction towards light (camera coords)
+                    vec3 lightDir = normalize( (lightPos - fPosCam).xyz );
+
+                    // Cosine of the angle between normal and lightDir
+                    float lDotN = max( dot( lightDir, n ), 0.0 );
+
+
+                    if( uHasDiffuseTex ) { 
+
+                        vec3 diffuse = texture(uDiffuseTex, fTexCoord).rgb * lDotN,  //Use texture as the diffuse reflectivity in the reflection model.
+                            specular = vec3(0,0,0);
+
+                        if( lDotN > 0.0 ) {
+                            // Direction towards the camera
+                            vec3 vDir = normalize( -fPosCam );
+                            // "Halfway" vector
+                            vec3 h = normalize( lightDir + vDir );
+                            float hDotN = max( dot(h, n), 0.0 );
+                            specular = uSpecular * pow(hDotN, uShine);
+                        }
+                        diffuseTotal = (diffuseTotal + diffuse);
+                        specularTotal = (specularTotal + specular);
+                    }
+                    else{
+                        vec3 diffuse = uDiffuse * lDotN, 
+                            specular = vec3(0,0,0);
+                        if( lDotN > 0.0 ) {
+                            // Direction towards the camera
+                            vec3 vDir = normalize( -fPosCam );
+                            // "Halfway" vector
+                            vec3 h = normalize( lightDir + vDir );
+                            float hDotN = max( dot(h, n), 0.0 );
+                            specular = uSpecular * pow(hDotN, uShine);
+                        }
+                        diffuseTotal = (diffuseTotal + diffuse);
+                        specularTotal = (specularTotal + specular);
+                    }
+                }
+
+                //iterate through headlights
+                for(int i = 0; i < 2; i++){ 
+                    lightPos = uHeadLightPos[i];
+                    lightIntensity = uHeadLightIntensity;
+            
+                    // Renormalize (interpolation can change length slightly)
+                    vec3 n = normalize(fNormCam);
+                    
+                    // Direction towards light (camera coords)
+                    vec3 lightDir = normalize( (lightPos - fPosCam).xyz );
+
+                    // Cosine of the angle between normal and lightDir
+                    float lDotN = max( dot( lightDir, n ), 0.0 );
+
+
+                    if( uHasDiffuseTex ) { 
+
+                        vec3 diffuse = texture(uDiffuseTex, fTexCoord).rgb * lDotN,  //Use texture as the diffuse reflectivity in the reflection model.
+                            specular = vec3(0,0,0);
+
+                        if( lDotN > 0.0 ) {
+                            // Direction towards the camera
+                            vec3 vDir = normalize( -fPosCam );
+                            // "Halfway" vector
+                            vec3 h = normalize( lightDir + vDir );
+                            float hDotN = max( dot(h, n), 0.0 );
+                            specular = uSpecular * pow(hDotN, uShine);
+                        }
+                        diffuseTotal = (diffuseTotal + diffuse);
+                        specularTotal = (specularTotal + specular);
+                    }
+                    else{
+                        vec3 diffuse = uDiffuse * lDotN, 
+                            specular = vec3(0,0,0);
+                        if( lDotN > 0.0 ) {
+                            // Direction towards the camera
+                            vec3 vDir = normalize( -fPosCam );
+                            // "Halfway" vector
+                            vec3 h = normalize( lightDir + vDir );
+                            float hDotN = max( dot(h, n), 0.0 );
+                            specular = uSpecular * pow(hDotN, uShine);
+                        }
+                        diffuseTotal = (diffuseTotal + diffuse);
+                        specularTotal = (specularTotal + specular);
+                    }
+                }
+
+                // Final color
+                    fragColor = vec4( 
+                        uEmissive + 
+                        uAmbientLight * uAmbient + 
+                        lightIntensity * (diffuseTotal + specularTotal)
+                        , 1 );
+                
+            }
+            //day  mode
+            else {
+                lightPos = uSunPos;
+                lightIntensity = uSunIntensity;
+    
+                // Renormalize (interpolation can change length slightly)
+                vec3 n = normalize(fNormCam);
+                    
+                // Direction towards light (camera coords)
+                vec3 lightDir = normalize( (lightPos - fPosCam).xyz );
+    
+                // Cosine of the angle between normal and lightDir
+                float lDotN = max( dot( lightDir, n ), 0.0 );
+    
+                if( uHasDiffuseTex ) { 
+    
+                    vec3 diffuse = texture(uDiffuseTex, fTexCoord).rgb * lDotN,  //Use texture as the diffuse reflectivity in the reflection model.
+                        specular = vec3(0,0,0);
+    
+                    if( lDotN > 0.0 ) {
+                        // Direction towards the camera
+                        vec3 vDir = normalize( -fPosCam );
+                        // "Halfway" vector
+                        vec3 h = normalize( lightDir + vDir );
+                         float hDotN = max( dot(h, n), 0.0 );
+                        specular = uSpecular * pow(hDotN, uShine);
+                    }
+                    
+                    // Final color
+                    fragColor = vec4( 
+                        uEmissive + 
+                        uAmbientLight * uAmbient + 
+                        lightIntensity * (diffuse + specular)
+                        , 1 );
+                    }
+                    else{
+                        vec3 diffuse = uDiffuse * lDotN, 
+                            specular = vec3(0,0,0);
+                        if( lDotN > 0.0 ) {
+                            // Direction towards the camera
+                            vec3 vDir = normalize( -fPosCam );
+                            // "Halfway" vector
+                            vec3 h = normalize( lightDir + vDir );
+                            float hDotN = max( dot(h, n), 0.0 );
+                        specular = uSpecular * pow(hDotN, uShine);
+                    }
+                    
+                    // Final color
+                    fragColor = vec4( 
+                        uEmissive + 
+                        uAmbientLight * uAmbient + 
+                        lightIntensity * (diffuse + specular)
+                        , 1 );
+                }
+            }
+        
+        
     }
 </script>
 
