@@ -8,7 +8,7 @@ Sources consulted: stackOverflow, example 08.texture (used as base)
 Known Bugs: ****
 Special instructions: ****
 python -m http.server 8080
-http://localhost:8080/pa6.html
+http://localhost:8080/race.html
 */
  //test line
 // The WebGL object
@@ -17,10 +17,12 @@ var gl;
 // The HTML canvas
 var canvas;
 
-var grid;    // The reference grid
-var axes;    // The coordinate axes
-var camera;  // The camera
-var car;     // The car information john
+var grid;     // The reference grid
+var axes;     // The coordinate axes
+var camera;   // The camera
+var car;      // The car information john
+var sunLoc; //light locations
+var headlightLoc;
 
 // Uniform variable locations
 var uni = {
@@ -32,10 +34,16 @@ var uni = {
     uDiffuse: null,  // Diffuse reflectivity (Kd)
     uSpecular: null,  // Specular reflectivity (Ks)
     uShine: null,    // Specular exponent (f)
-    uLightPos: null,        // Light position (camera coords)
-    uLightIntensity: null,  // Light intensity
+    uSunPos: null,        // Light position (camera coords)
+    uSunIntensity: null,  // Light intensity
     uAmbientLight: null,
-    uCamAttached: null
+    uNightMode: null,    //whether scene is in night mode
+    uHeadLightPos: null,  //headlight positions (camera coords)
+    uHeadLightIntensity : null, //intensity of headlight
+    uTailLightPos: null,  
+    uTailLightIntensity : null, 
+    uStreetLights: null,
+    uStreetLightIntensity: null
 };
 
 // material/texture objects
@@ -84,19 +92,34 @@ var init = function() {
     uni.uDiffuse = gl.getUniformLocation(program, "uDiffuse"); 
     uni.uSpecular = gl.getUniformLocation(program, "uSpecular"); 
     uni.uShine = gl.getUniformLocation(program, "uShine");   
-    uni.uLightPos = gl.getUniformLocation(program, "uLightPos");     
-    uni.uLightIntensity = gl.getUniformLocation(program, "uLightIntensity"); 
+    uni.uSunPos = gl.getUniformLocation(program, "uSunPos");     
+    uni.uSunIntensity = gl.getUniformLocation(program, "uSunIntensity"); 
     uni.uAmbientLight = gl.getUniformLocation(program, "uAmbientLight");
-    uni.uCamAttached = gl.getUniformLocation(program, "uCamAttached")  
     uni.uDiffuseTex = gl.getUniformLocation(program, "uDiffuseTex");
     uni.uHasDiffuseTex = gl.getUniformLocation(program, "uHasDiffuseTex");
 
-    //set base values that do not change
-    gl.uniform3fv(uni.uLightIntensity,vec3.fromValues(0.7,0.7,0.7));
-    gl.uniform3fv(uni.uAmbientLight,vec3.fromValues(0.0,0.0,0.0));
-    gl.uniform1i(gl.uCamAttached,1);
-    gl.uniform1i(uni.uDiffuseTex, 0);
+    
+    uni.uNightMode = gl.getUniformLocation(program, "uNightMode");
+    //car properties
+    uni.uHeadLightPos = gl.getUniformLocation(program, "uHeadLightPos");
+    uni.uHeadLightIntensity = gl.getUniformLocation(program, "uHeadLightIntensity");
+    uni.uTailLightPos = gl.getUniformLocation(program, "uTailLightPos");
+    uni.uTailLightIntensity = gl.getUniformLocation(program, "uTailLightIntensity");
 
+    //street light properties
+    uni.uStreetLights = gl.getUniformLocation(program, "uStreetLights");
+    uni.uStreetLightIntensity = gl.getUniformLocation(program, "uStreetLightIntensity");
+
+
+    //set base values that do not change
+    gl.uniform3fv(uni.uSunIntensity,vec3.fromValues(1,1,1));
+    gl.uniform3fv(uni.uAmbientLight,vec3.fromValues(0.0,0.0,0.0));
+    gl.uniform3fv(uni.uHeadLightIntensity,vec3.fromValues(.7,.7,.7));
+    gl.uniform3fv(uni.uTailLightIntensity,vec3.fromValues(.2,0,0));
+    gl.uniform3fv(uni.uStreetLightIntensity,vec3.fromValues(.7,.7,.7));
+
+    gl.uniform1i(uni.uDiffuseTex, 0);
+    gl.uniform1f(uni.uNightMode, 0); //default to day time
     //attach textures to material
     groundMaterial.diffuseTexture = "dirt.png";
     racetrackMaterial.diffuseTexture = "racetrack.png";
@@ -113,6 +136,11 @@ var init = function() {
     camera.fov = glMatrix.toRadian(60);
     camera.lookAt( vec3.fromValues(0,5,-20), vec3.fromValues(0,0,0), vec3.fromValues(0,1,0));
 
+    //initialize sun location
+    let cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(0, 100, 0), camera.viewMatrix()); 
+    gl.uniform3fv(uni.uSunPos, cameraCoord);    
+    
     //initialize the car
     car = new car();
 
@@ -128,7 +156,7 @@ var init = function() {
          Obj.load(gl,"media/eclipse.obj"),
          Utils.loadTexture(gl, "media/racetrack.png"),
          Obj.load(gl,"media/roadblock_obj.obj"),
-         Obj.load(gl,"media/Date_Palm.obj")
+         Obj.load(gl,"media/Date_Palm.obj"),
          //Utils.loadTexture(gl, "media/Bottom_Trunk.png")
              ]).then( function(values) {
          Textures["dirt.png"] = values[0]
@@ -140,6 +168,7 @@ var init = function() {
          //Textures["Bottom_Trunk.png"] = values[6];
         render();
     });
+
 };
 
 
@@ -177,7 +206,7 @@ var render = function() {
     // Update camera when in fly mode
     updateCamera();
     
-    //Update the car
+    //Update the car and headlights
     updateCar();
 
     // Clear the color and depth buffers
@@ -200,7 +229,8 @@ var drawScene = function() {
     var sc = new scenery(model);
     //render the ground with dirt texture
     mat4.identity(model);
-    
+
+    //draw road blocks
     sc.drawScenery(model,groundMaterial,racetrackMaterial);
     sc.drawRoadblock1(model);
     sc.drawRoadblock2(model);
@@ -213,13 +243,70 @@ var drawScene = function() {
     sc.drawRoadblockW(model);
     sc.drawRoadblockN(model);
     sc.drawRoadblockS(model);
-    //sc.drawPalms(model);
+
+    //draw lamps
+    //this will set the uniform streetLights which holds the camera coordinates of each of the street lights
+    let temp = [];
+    let cameraCoord;
+
+    //lamp1
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(-101, 2, 5), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(-101, 0, 5, nightMode);
+
+    //lamp2
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(55, 2, 3), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(55, 0, 3, nightMode);
+
+    //lamp3
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(-25, 2, 77), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(-25, 0, 77, nightMode);
+
+    //lamp4
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(7, 2, -36), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(7, 0, -36, nightMode);
+
+    //lamp5
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(-57, 2, -87), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(-57, 0, -87, nightMode);
+
+    //lamp6
+    cameraCoord = vec3.create();
+    vec3.transformMat4(cameraCoord, vec3.fromValues(100, 2, -110), camera.viewMatrix()); //camera coordinate for 10 units above origin
+    temp.push(cameraCoord[0])
+    temp.push(cameraCoord[1])
+    temp.push(cameraCoord[2])
+    sc.drawLamp(100, 0, -110, nightMode);
+
+    //the size of this is static and must be declared in shader
+    gl.uniform3fv(uni.uStreetLights, Float32Array.from(temp)); 
+
     drawCar();
 
     //render a cube with box texture
     mat4.fromTranslation(model, vec3.fromValues(4.0,0.5,4.0));
     gl.uniformMatrix4fv(uni.uModel, false, model);
     Shapes.cube.render(gl, uni,blockMaterial);
+
 };
 
 /**
@@ -235,11 +322,9 @@ var drawAxesAndGrid = function() {
 };
 
 var drawCar = function(){
+    let model = mat4.create();
     gl.uniformMatrix4fv(uni.uModel,false, car.model);
     Shapes.car.render(gl,uni);
-
-    
-
 }
 //////////////////////////////////////////////////
 // Event handlers
@@ -260,7 +345,7 @@ mouseState = {
 var cameraMode = 0;          // Mouse = 0, Fly = 1
 var numCameraModes = 3 - 1;  // How many different camera options there are
 var downKeys = new Set();    // Keys currently pressed
-
+var nightMode = 0;
 var setupEventHandlers = function() {
     let modeSelect = document.getElementById("camera-mode-select");
 
@@ -273,11 +358,11 @@ var setupEventHandlers = function() {
     modeSelect.addEventListener("change", 
         function(e) {
             let val = e.target.value;
-            if( val === "0" )
+            if( val === "0" )      //unlocked
                 cameraMode = 0;
-            else if( val === "1" ) 
+            else if( val === "1" ) //1st person
                 cameraMode = 1;
-            else if( val === "2" ) 
+            else if( val === "2" ) //3rd person
                 cameraMode = 2;
         }
     );
@@ -286,10 +371,14 @@ var setupEventHandlers = function() {
     lightSelect.addEventListener("change", 
         function(e) {
             let val = e.target.value;
-            if( val === "0" )
-                lightMode = 0;
-            else if( val === "1" ) 
-                lightMode = 1;
+            if( val === "0" ){
+                nightMode = 0;
+                gl.uniform1f(uni.uNightMode, 0); //set uniform in frag shader to day mode
+            }
+            else if( val === "1" ) {
+                nightMode = 1;
+                gl.uniform1f(uni.uNightMode, 1); //set uniform in frag shader to night mode
+            }
         }
     );
 
@@ -377,6 +466,27 @@ var updateCar = function(){
         camera.reverse(car);
     }
 
+    
+    if(nightMode == 1){
+        //set location of headlights --should be camera coord
+        let temp = [];
+        let cameraCoord = vec3.create();
+        vec3.transformMat4(cameraCoord, car.getHeadLightLoc()[0], camera.viewMatrix()); //left headlight
+        temp.push(cameraCoord[0]);
+        temp.push(cameraCoord[1]);
+        temp.push(cameraCoord[2]);
+
+        cameraCoord = vec3.create();
+        vec3.transformMat4(cameraCoord, car.getHeadLightLoc()[1], camera.viewMatrix()); //right headlight
+        temp.push(cameraCoord[0]);
+        temp.push(cameraCoord[1]);
+        temp.push(cameraCoord[2]);
+
+        gl.uniform3fv(uni.uHeadLightPos, Float32Array.from(temp)); 
+
+        //set location of taillights --also camera coordinates
+    }
+    
 
 }
 
