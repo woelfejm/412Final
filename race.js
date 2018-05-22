@@ -8,7 +8,7 @@ Sources consulted: stackOverflow, example 08.texture (used as base)
 Known Bugs: ****
 Special instructions: ****
 python -m http.server 8080
-http://localhost:8080/pa6.html
+http://localhost:8080/race.html
 */
  //test line
 // The WebGL object
@@ -20,7 +20,8 @@ var canvas;
 var grid;    // The reference grid
 var axes;    // The coordinate axes
 var camera;  // The camera
-var car;     // The car information john
+var car;     // The car information phys-john // collision-dave
+var colSpheres = [];
 
 // Uniform variable locations
 var uni = {
@@ -47,6 +48,7 @@ var barrelMaterial = new Material();
 var raftMaterial = new Material();
 var checkMaterial = new Material();
 var palmMaterial = new Material();
+var lowAlphaMaterial = new Material();
 
 
 
@@ -61,15 +63,21 @@ var init = function() {
     canvas = document.getElementById("gl-canvas");
     gl = WebGLUtils.setupWebGL(canvas);
     if (!gl) { alert("WebGL isn't available"); }
-
+    
     // Set the viewport transformation
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     // Set the background color
     gl.clearColor(0.5, 0.5, 0.5, 1.0);
     
+    //enable blending
+    gl.enable(gl.BLEND);
+
     // Enable the z-buffer
     gl.enable(gl.DEPTH_TEST);
+
+    // Set the blending function
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     // Load and compile shaders
     program = Utils.loadShaderProgram(gl, "vertex-shader-p", "fragment-shader-p");
@@ -90,6 +98,8 @@ var init = function() {
     uni.uCamAttached = gl.getUniformLocation(program, "uCamAttached")  
     uni.uDiffuseTex = gl.getUniformLocation(program, "uDiffuseTex");
     uni.uHasDiffuseTex = gl.getUniformLocation(program, "uHasDiffuseTex");
+    uni.uColor = gl.getUniformLocation(program, "uColor");
+    uni.uHasColor = gl.getUniformLocation(program, "uHasColor");
 
     //set base values that do not change
     gl.uniform3fv(uni.uLightIntensity,vec3.fromValues(0.7,0.7,0.7));
@@ -101,6 +111,7 @@ var init = function() {
     groundMaterial.diffuseTexture = "dirt.png";
     racetrackMaterial.diffuseTexture = "racetrack.png";
     blockMaterial.diffuseTexture = "crate.png";
+    lowAlphaMaterial.color = vec4.fromValues(0.5,1,1,0.5);
     //palmMaterial.diffuseTexture = "Bottom_Trunk.png";
 
     // Initialize our shapes
@@ -213,13 +224,19 @@ var drawScene = function() {
     sc.drawRoadblockW(model);
     sc.drawRoadblockN(model);
     sc.drawRoadblockS(model);
-    //sc.drawPalms(model);
-    drawCar();
+    
+    
+    
 
+    
+    
+    drawCar();
+    
+    car.checkCollision(sc.colPoints,sc.rad);
     //render a cube with box texture
-    mat4.fromTranslation(model, vec3.fromValues(4.0,0.5,4.0));
-    gl.uniformMatrix4fv(uni.uModel, false, model);
-    Shapes.cube.render(gl, uni,blockMaterial);
+    
+    
+    
 };
 
 /**
@@ -400,6 +417,7 @@ var mouseDrag = function () {
         }
     }
 };
+
 
 
 // When the HTML document is loaded, call the init function.

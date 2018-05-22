@@ -122,6 +122,8 @@ Special instructions: ****
     // Texture parameters
     uniform bool uHasDiffuseTex;
     uniform sampler2D uDiffuseTex;
+	uniform bool uHasColor;
+	uniform vec4 uColor;
 
     void main() {
         vec3 diff = vec3(0,0,0);
@@ -143,9 +145,11 @@ Special instructions: ****
             float hDotN = max( dot(h, n), 0.0 );
             specular = uSpecular * pow(hDotN, uShine);
         }
-        if( uHasDiffuseTex )
+        if( uHasDiffuseTex ){
             diff = texture(uDiffuseTex, fTexCoord).rgb;
-
+		}else if( uHasColor ){
+			fragColor = uColor;
+		}
         // Final color
         fragColor = vec4(
             diff + uEmissive +
@@ -169,6 +173,7 @@ Special instructions: ****
 <script type="text/javascript" src="lib/geom/shapes/cube.js"></script>
 <script type="text/javascript" src="lib/geom/shapes/cylinder.js"></script>
 <script type="text/javascript" src="lib/geom/shapes/disk.js"></script>
+<script type="text/javascript" src="lib/geom/shapes/sphere.js"></script>
 <script type="text/javascript" src="lib/geom/shapes.js"></script>
 <script type="text/javascript" src="lib/textures.js"></script>
 <script type="text/javascript" src="lib/camera.js"></script>
