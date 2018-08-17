@@ -1,12 +1,12 @@
 
 /*
-Name: David Stoppenbrink
-Assignment: Pa6
+Name: David Stoppenbrink, John Woelfel
+Assignment: PA6
 Course/Semester: CS 412 - Spring 2018
 Instructor: Dr. Wolff
 Sources consulted: stackOverflow, example 08.texture (used as base)
 Known Bugs: ****
-Special instructions: ****
+Special instructions: Must be ran on a server to access the obj files
 python -m http.server 8080
 http://localhost:8080/race.html
 */
